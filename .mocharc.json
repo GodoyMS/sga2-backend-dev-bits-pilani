@@ -1,0 +1,8 @@
+{
+  "require": ["test/setup-env.js", "ts-node/register/transpile-only"],
+  "spec": ["test/**/*.test.ts"],
+  "extension": ["ts"],
+  "timeout": 20000,
+  "exit": true,
+  "reporter": "spec"
+}
