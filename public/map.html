@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fleet Console — Vehicle Map</title>
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css" />
+  <style>
+    :root {
+      --bg: #0f1720; --panel: #16212d; --panel-2: #1c2a39; --line: #263646; --text: #e6edf3; --muted: #8aa0b4;
+      --accent: #3ba7ff; --ok: #2ecc71; --warn: #f5a524; --bad: #ff5c5c; --idle: #a78bfa; --off: #64748b;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--text); }
+    header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+    header h1 { font-size: 16px; margin: 0 12px 0 0; font-weight: 650; letter-spacing: .2px; }
+    header h1 span { color: var(--accent); }
+    header a { color: var(--muted); font-size: 13px; text-decoration: none; }
+    header a:hover { color: var(--text); }
+    .auth { display: flex; gap: 8px; align-items: center; margin-left: auto; flex-wrap: wrap; }
+    input, select, button { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; }
+    input:focus, select:focus { outline: 1px solid var(--accent); }
+    button { cursor: pointer; background: var(--accent); border-color: var(--accent); color: #04121f; font-weight: 600; }
+    button.ghost { background: transparent; color: var(--text); border-color: var(--line); font-weight: 500; }
+    button.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
+    .pill.on { color: var(--ok); border-color: #1f6f45; }
+    main { display: grid; grid-template-columns: 340px 1fr 380px; height: calc(100% - 53px); }
+    aside { overflow: auto; background: var(--panel); border-right: 1px solid var(--line); }
+    aside.right { border-right: 0; border-left: 1px solid var(--line); }
+    section { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+    section h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 10px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+    .row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .row > * { flex: 1; min-width: 0; }
+    label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 3px; }
+    #map { height: 100%; background: #0b1218; }
+    .list { list-style: none; margin: 0; padding: 0; }
+    .list li { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 6px; background: var(--panel-2); cursor: pointer; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .list li:hover, .list li.sel { border-color: var(--accent); }
+    .plate { font-weight: 650; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+    .sub { color: var(--muted); font-size: 12px; }
+    .dist { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--accent); white-space: nowrap; }
+    .st { font-size: 11px; padding: 1px 7px; border-radius: 999px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+    .st.active { background: #12382a; color: var(--ok); } .st.idle { background: #2a2147; color: var(--idle); }
+    .st.maintenance { background: #3b2c0e; color: var(--warn); } .st.out_of_service { background: #3d1717; color: var(--bad); }
+    .st.offline { background: #222b36; color: var(--off); } .st.sent { background: #12382a; color: var(--ok); } .st.failed { background: #3d1717; color: var(--bad); }
+    .notif { padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 7px; background: var(--panel-2); }
+    .notif .top { display: flex; justify-content: space-between; gap: 6px; align-items: center; margin-bottom: 4px; }
+    .notif .msg { font-size: 13px; }
+    .notif .meta { font-size: 11.5px; color: var(--muted); margin-top: 4px; font-family: ui-monospace, Menlo, monospace; word-break: break-all; }
+    .inspector { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; background: #0b1218; border: 1px solid var(--line); border-radius: 8px; padding: 10px; white-space: pre-wrap; word-break: break-all; max-height: 260px; overflow: auto; }
+    .k { color: var(--muted); } .code2 { color: var(--ok); } .code4 { color: var(--warn); } .code5 { color: var(--bad); }
+    .stats { display: flex; gap: 8px; }
+    .stat { flex: 1; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+    .stat b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+    .stat span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .muted { color: var(--muted); font-size: 12.5px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
+    .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+    .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--panel-2); border: 1px solid var(--line); padding: 9px 14px; border-radius: 8px; z-index: 9999; display: none; }
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--panel); color: var(--text); }
+    .leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
+    @media (max-width: 1100px) { main { grid-template-columns: 300px 1fr; } aside.right { display: none; } }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Fleet<span>Console</span></h1>
+  <a href="/docs" target="_blank">API docs</a>
+  <a href="/health/services" target="_blank">Service health</a>
+  <div class="auth">
+    <input id="apiKey" placeholder="x-api-key" style="width:150px" title="Gateway API key" />
+    <select id="who" title="Demo user">
+      <option value="admin@fleet.local|Admin@123">admin</option>
+      <option value="operator@fleet.local|Operator@123">operator</option>
+      <option value="viewer@fleet.local|Viewer@123">viewer</option>
+    </select>
+    <button id="loginBtn">Sign in</button>
+    <span id="session" class="pill">signed out</span>
+  </div>
+</header>
+
+<main>
+  <aside>
+    <section>
+      <h2>Nearby search</h2>
+      <div class="row">
+        <div><label>Address (geocoded)</label><input id="address" placeholder="e.g. Koramangala, Bengaluru" /></div>
+      </div>
+      <div class="row">
+        <div><label>Latitude</label><input id="lat" value="12.9716" /></div>
+        <div><label>Longitude</label><input id="lng" value="77.5946" /></div>
+      </div>
+      <div class="row">
+        <div><label>Radius (km)</label><input id="radius" type="number" value="6" min="0.1" step="0.5" /></div>
+        <div><label>Status</label>
+          <select id="statusFilter"><option value="">any</option><option>active</option><option>idle</option><option>maintenance</option><option>out_of_service</option><option>offline</option></select>
+        </div>
+      </div>
+      <div class="row"><button id="searchBtn">Find nearby vehicles</button></div>
+      <div class="muted">Tip: click the map to set the search center.</div>
+    </section>
+    <section>
+      <h2>Results <span id="resultCount" class="pill">0</span></h2>
+      <ul id="results" class="list"><li class="muted" style="cursor:default">Run a search to see vehicles in range.</li></ul>
+    </section>
+    <section>
+      <h2>Fleet <span id="fleetCount" class="pill">0</span></h2>
+      <div class="legend" style="margin-bottom:10px">
+        <span><i class="dot" style="background:var(--ok)"></i>active</span><span><i class="dot" style="background:var(--idle)"></i>idle</span>
+        <span><i class="dot" style="background:var(--warn)"></i>maintenance</span><span><i class="dot" style="background:var(--bad)"></i>out of service</span>
+        <span><i class="dot" style="background:var(--off)"></i>offline</span>
+      </div>
+      <ul id="fleet" class="list"></ul>
+    </section>
+  </aside>
+
+  <div id="map"></div>
+
+  <aside class="right">
+    <section id="vehiclePanel">
+      <h2>Selected vehicle</h2>
+      <div id="vehicleInfo" class="muted">Pick a vehicle from the list or the map.</div>
+      <div id="vehicleActions" style="display:none; margin-top:10px">
+        <label>Simulate a vehicle event (telemetry)</label>
+        <div class="row">
+          <select id="eventType"><option>ENGINE_FAULT</option><option>LOW_BATTERY</option><option>EMERGENCY_STOP</option><option>ENGINE_OVERHEAT</option><option>HEARTBEAT</option></select>
+          <button id="sendEvent" class="danger">Send</button>
+        </div>
+        <label>Change operational status</label>
+        <div class="row">
+          <select id="newStatus"><option>active</option><option>idle</option><option>maintenance</option><option>out_of_service</option><option>offline</option></select>
+          <button id="setStatus">Update</button>
+        </div>
+      </div>
+    </section>
+    <section>
+      <h2>SMS notifications <button class="ghost" id="refreshNotifs" style="padding:2px 8px;font-size:12px">Refresh</button></h2>
+      <div class="stats" style="margin-bottom:10px">
+        <div class="stat"><b id="sentCount">–</b><span>sent</span></div>
+        <div class="stat"><b id="failedCount">–</b><span>failed</span></div>
+        <div class="stat"><b id="provider" style="font-size:15px;padding-top:4px">–</b><span>provider</span></div>
+      </div>
+      <div id="notifs" class="muted">Sign in as admin or operator to see the log.</div>
+    </section>
+    <section>
+      <h2>Gateway inspector</h2>
+      <div id="inspector" class="inspector">No requests yet.</div>
+    </section>
+  </aside>
+</main>
+<div id="toast" class="toast"></div>
+
+<script src="/vendor/leaflet/leaflet.js"></script>
+<script>
+  const COLORS = { active: '#2ecc71', idle: '#a78bfa', maintenance: '#f5a524', out_of_service: '#ff5c5c', offline: '#64748b' };
+  const store = {
+    get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  };
+  const state = { token: store.get('fleet.token', ''), role: store.get('fleet.role', ''), vehicles: [], selected: null };
+  const $ = (id) => document.getElementById(id);
+  $('apiKey').value = store.get('fleet.apiKey', new URLSearchParams(location.search).get('key') || 'demo-fleet-key');
+
+  const map = L.map('map', { zoomControl: true }).setView([12.9716, 77.5946], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; OpenStreetMap contributors',
+  }).addTo(map);
+  const vehicleLayer = L.layerGroup().addTo(map);
+  const searchLayer = L.layerGroup().addTo(map);
+  const markers = new Map();
+
+  function toast(msg, ms = 2800) {
+    const t = $('toast'); t.textContent = msg; t.style.display = 'block';
+    clearTimeout(toast.h); toast.h = setTimeout(() => (t.style.display = 'none'), ms);
+  }
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  async function call(method, path, body) {
+    store.set('fleet.apiKey', $('apiKey').value.trim());
+    const headers = { 'x-api-key': $('apiKey').value.trim() };
+    if (state.token) headers.authorization = 'Bearer ' + state.token;
+    if (body) headers['content-type'] = 'application/json';
+    const started = performance.now();
+    const res = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : null;
+    const ms = Math.round(performance.now() - started);
+    const cls = 'code' + String(res.status)[0];
+    $('inspector').innerHTML =
+      `<span class="k">${method}</span> ${esc(path)}\n` +
+      `<span class="k">status       </span><span class="${cls}">${res.status}</span>  (${ms} ms)\n` +
+      `<span class="k">x-gateway    </span>${esc(res.headers.get('x-gateway'))}\n` +
+      `<span class="k">x-served-by  </span>${esc(res.headers.get('x-served-by') || '(gateway)')}\n` +
+      `<span class="k">x-request-id </span>${esc(res.headers.get('x-request-id'))}\n` +
+      `<span class="k">ratelimit    </span>${esc(res.headers.get('ratelimit') || '-')}\n\n` +
+      esc(JSON.stringify(data, null, 2)).slice(0, 1800);
+    if (res.status === 401 && /^TOKEN_/.test(data?.error?.code || '')) {
+      state.token = ''; store.set('fleet.token', ''); setSession();
+    }
+    if (!res.ok) {
+      const err = new Error(data?.error?.message || res.statusText); err.status = res.status; err.code = data?.error?.code; throw err;
+    }
+    return data;
+  }
+
+  function setSession() {
+    $('session').textContent = state.token ? `signed in · ${state.role}` : 'signed out';
+    $('session').className = 'pill' + (state.token ? ' on' : '');
+  }
+
+  async function login() {
+    const [email, password] = $('who').value.split('|');
+    try {
+      state.token = '';
+      const data = await call('POST', '/api/users/login', { email, password });
+      state.token = data.token; state.role = data.user.role;
+      store.set('fleet.token', state.token); store.set('fleet.role', state.role);
+      setSession(); toast(`Signed in as ${data.user.email}`);
+      await Promise.all([loadVehicles(), loadNotifications()]);
+    } catch (e) { toast(`Login failed: ${e.message}`); }
+  }
+
+  function statusBadge(s) { return `<span class="st ${s}">${s.replace(/_/g, ' ')}</span>`; }
+
+  async function loadVehicles() {
+    try {
+      const data = await call('GET', '/api/maps/vehicles');
+      state.vehicles = data.features.map((f) => f.properties);
+      vehicleLayer.clearLayers(); markers.clear();
+      for (const v of state.vehicles) {
+        const m = L.circleMarker([v.location.latitude, v.location.longitude], {
+          radius: 8, color: '#0b1218', weight: 2, fillColor: COLORS[v.status] || '#3ba7ff', fillOpacity: 0.95,
+        }).bindPopup(`<b class="plate">${esc(v.plateNumber)}</b><br>${esc(v.make || '')} ${esc(v.model || '')}<br>${statusBadge(v.status)}<br><span class="sub">${esc(v.address || '')}</span>`);
+        m.on('click', () => selectVehicle(v.id));
+        m.addTo(vehicleLayer); markers.set(v.id, m);
+      }
+      $('fleetCount').textContent = state.vehicles.length;
+      $('fleet').innerHTML = state.vehicles.map((v) =>
+        `<li data-id="${v.id}" class="${state.selected === v.id ? 'sel' : ''}"><div><div class="plate">${esc(v.plateNumber)}</div><div class="sub">${esc(v.make || '')} ${esc(v.model || '')} · ${esc(v.vehicleType)}</div></div>${statusBadge(v.status)}</li>`).join('');
+      document.querySelectorAll('#fleet li').forEach((li) => li.onclick = () => selectVehicle(li.dataset.id, true));
+    } catch (e) { toast(`Could not load vehicles: ${e.message}`); }
+  }
+
+  async function search() {
+    const params = new URLSearchParams({ radiusKm: $('radius').value || '5' });
+    const address = $('address').value.trim();
+    if (address) params.set('address', address); else { params.set('lat', $('lat').value); params.set('lng', $('lng').value); }
+    if ($('statusFilter').value) params.set('status', $('statusFilter').value);
+    try {
+      const data = await call('GET', '/api/maps/nearby?' + params);
+      const c = data.center;
+      $('lat').value = c.latitude.toFixed(5); $('lng').value = c.longitude.toFixed(5);
+      searchLayer.clearLayers();
+      const circle = L.circle([c.latitude, c.longitude], { radius: data.radiusKm * 1000, color: '#3ba7ff', weight: 1.5, fillOpacity: 0.08 }).addTo(searchLayer);
+      L.circleMarker([c.latitude, c.longitude], { radius: 5, color: '#fff', weight: 2, fillColor: '#3ba7ff', fillOpacity: 1 })
+        .bindTooltip(c.formattedAddress ? `Center: ${esc(c.formattedAddress)} (${esc(c.source)})` : 'Search center', { direction: 'top' }).addTo(searchLayer);
+      for (const v of data.vehicles) {
+        L.polyline([[c.latitude, c.longitude], [v.location.latitude, v.location.longitude]], { color: '#3ba7ff', weight: 1, dashArray: '4 4', opacity: 0.7 }).addTo(searchLayer);
+      }
+      map.fitBounds(circle.getBounds(), { padding: [30, 30] });
+      $('resultCount').textContent = data.count;
+      $('results').innerHTML = data.vehicles.length
+        ? data.vehicles.map((v) => `<li data-id="${v.id}"><div><div class="plate">${esc(v.plateNumber)} ${statusBadge(v.status)}</div><div class="sub">${esc(v.address || '')}</div></div><span class="dist">${v.distanceKm.toFixed(2)} km</span></li>`).join('')
+        : '<li class="muted" style="cursor:default">No vehicles within this radius.</li>';
+      document.querySelectorAll('#results li[data-id]').forEach((li) => li.onclick = () => selectVehicle(li.dataset.id, true));
+      toast(`${data.count} vehicle(s) within ${data.radiusKm} km`);
+    } catch (e) { toast(`Search failed: ${e.message}`); }
+  }
+
+  function selectVehicle(id, pan) {
+    state.selected = id;
+    const v = state.vehicles.find((x) => x.id === id);
+    if (!v) return;
+    document.querySelectorAll('#fleet li').forEach((li) => li.classList.toggle('sel', li.dataset.id === id));
+    $('vehicleInfo').innerHTML =
+      `<div class="plate" style="font-size:15px">${esc(v.plateNumber)} ${statusBadge(v.status)}</div>` +
+      `<div class="sub">${esc(v.make || '')} ${esc(v.model || '')} ${v.year || ''} · ${esc(v.vehicleType)}</div>` +
+      `<div class="sub">${v.location.latitude.toFixed(5)}, ${v.location.longitude.toFixed(5)} · source: ${esc(v.location.source)}</div>` +
+      `<div class="sub">${esc(v.address || '')}</div>`;
+    $('vehicleActions').style.display = state.role === 'viewer' ? 'none' : 'block';
+    $('newStatus').value = v.status;
+    if (pan) { map.setView([v.location.latitude, v.location.longitude], Math.max(map.getZoom(), 13)); markers.get(id)?.openPopup(); }
+  }
+
+  async function sendEvent() {
+    const v = state.vehicles.find((x) => x.id === state.selected); if (!v) return;
+    const type = $('eventType').value;
+    const body = {
+      vehicleId: v.id, latitude: v.location.latitude, longitude: v.location.longitude,
+      speedKph: type === 'EMERGENCY_STOP' ? 0 : 38, batteryLevel: type === 'LOW_BATTERY' ? 9 : 76,
+      engineTempC: type === 'ENGINE_OVERHEAT' ? 121 : 92, eventType: type,
+    };
+    try {
+      const data = await call('POST', '/api/telemetry', body);
+      const n = data.notifications.reduce((acc, x) => acc + (x.summary?.sent || 0), 0);
+      toast(data.criticalEvents.length ? `${data.criticalEvents.join(', ')} → ${n} SMS sent` : 'Telemetry stored');
+      await loadNotifications();
+    } catch (e) { toast(`Telemetry failed: ${e.message}`); }
+  }
+
+  async function setStatus() {
+    const v = state.vehicles.find((x) => x.id === state.selected); if (!v) return;
+    try {
+      const data = await call('PATCH', `/api/vehicles/${v.id}/status`, { status: $('newStatus').value, reason: 'Updated from Fleet Console' });
+      toast(data.changed ? `Status → ${data.vehicle.status} · ${data.notification?.summary?.sent ?? 0} SMS sent` : 'Status unchanged');
+      await loadVehicles(); selectVehicle(v.id); await loadNotifications();
+    } catch (e) { toast(`Status update failed: ${e.message}`); }
+  }
+
+  async function loadNotifications() {
+    if (!state.token || state.role === 'viewer') return;
+    try {
+      const data = await call('GET', '/api/notifications?limit=15');
+      $('sentCount').textContent = data.stats.sent || 0;
+      $('failedCount').textContent = data.stats.failed || 0;
+      $('provider').textContent = data.provider;
+      const plate = (id) => state.vehicles.find((v) => v.id === id)?.plateNumber || '';
+      $('notifs').innerHTML = data.notifications.length ? data.notifications.map((n) =>
+        `<div class="notif"><div class="top"><b style="font-size:12.5px">${esc(n.eventType)} ${plate(n.vehicleId) ? '· ' + esc(plate(n.vehicleId)) : ''}</b>${statusBadge(n.status)}</div>` +
+        `<div class="msg">${esc(n.message)}</div>` +
+        `<div class="meta">to ${esc(n.recipient)} · ${esc(n.provider)} · ${new Date(n.createdAt).toLocaleTimeString()}${n.providerMessageId ? ' · ' + esc(n.providerMessageId) : ''}${n.error ? '<br><span style="color:var(--bad)">' + esc(n.error) + '</span>' : ''}</div></div>`).join('')
+        : '<div class="muted">No notifications yet. Send a vehicle event to trigger one.</div>';
+    } catch (e) { $('notifs').textContent = e.message; }
+  }
+
+  map.on('click', (e) => { $('address').value = ''; $('lat').value = e.latlng.lat.toFixed(5); $('lng').value = e.latlng.lng.toFixed(5); search(); });
+  $('loginBtn').onclick = login;
+  $('searchBtn').onclick = search;
+  $('sendEvent').onclick = sendEvent;
+  $('setStatus').onclick = setStatus;
+  $('refreshNotifs').onclick = loadNotifications;
+  $('address').addEventListener('keydown', (e) => e.key === 'Enter' && search());
+
+  setSession();
+  if (state.token) {
+    loadVehicles().then(loadNotifications).catch(() => {});
+  }
+</script>
+</body>
+</html>
