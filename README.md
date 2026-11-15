@@ -11,11 +11,13 @@ checks API keys, rate-limits per key and forwards requests to five backend servi
 
 | | URL |
 |---|---|
-| Live gateway | _see “Deployment” below_ |
-| Swagger UI | `/docs` |
-| OpenAPI JSON | `/openapi.json` |
-| Map console (geolocation + nearby + SMS demo) | `/map` |
-| Service health | `/health/services` |
+| Live gateway | https://fleet-api-production-1def0230.up.railway.app |
+| Swagger UI | [`/docs`](https://fleet-api-production-1def0230.up.railway.app/docs) |
+| OpenAPI JSON | [`/openapi.json`](https://fleet-api-production-1def0230.up.railway.app/openapi.json) |
+| Map console (geolocation + nearby + SMS demo) | [`/map`](https://fleet-api-production-1def0230.up.railway.app/map) |
+| Service health | [`/health/services`](https://fleet-api-production-1def0230.up.railway.app/health/services) |
+
+API key for the live demo: `demo-fleet-key` (demo users are listed under “Demo credentials”).
 
 ---
 
@@ -202,6 +204,28 @@ test/                           # Mocha/Chai suites (7 flows)
 
 ## Deployment
 
-Deployed on Railway as one service (Dockerfile) plus a Railway PostgreSQL database. Set
-`DATABASE_URL` from the Postgres service, plus `API_KEYS`, `JWT_SECRET`, `SERVICE_TOKEN` and the
-optional Google Maps / Twilio variables.
+Live on Railway: **https://fleet-api-production-1def0230.up.railway.app**
+
+- One Railway service built from the `Dockerfile` (gateway + the five services in one container;
+  services listen on loopback ports, only the gateway is public), plus a Railway PostgreSQL database.
+- Every push to `main` redeploys automatically.
+- Variables: `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `API_KEYS`, `JWT_SECRET`, `SERVICE_TOKEN`,
+  `RATE_LIMIT_MAX`, plus `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` /
+  `ALERT_PHONE_NUMBERS` for SMS and optionally `GOOGLE_MAPS_API_KEY`.
+
+---
+
+## Screenshots
+
+All in [`docs/screenshots`](docs/screenshots).
+
+| What | Screenshot |
+|---|---|
+| Fleet console: map, nearby results, SMS log, gateway checks | [00-fleet-console-overview.jpg](docs/screenshots/00-fleet-console-overview.jpg) |
+| Vehicle geolocation and nearby vehicles within 6 km | [01-nearby-vehicles-map.jpg](docs/screenshots/01-nearby-vehicles-map.jpg) |
+| SMS notifications for a vehicle event and a status change | [02-sms-notifications.jpg](docs/screenshots/02-sms-notifications.jpg) |
+| API Gateway: API key verification and routing to each service | [03-gateway-api-key-and-routing.png](docs/screenshots/03-gateway-api-key-and-routing.png) |
+| API Gateway: forwarded request headers (`x-served-by`, `x-request-id`, rate limit) | [04-gateway-inspector.png](docs/screenshots/04-gateway-inspector.png) |
+| Swagger UI | [05-swagger-ui-overview.jpg](docs/screenshots/05-swagger-ui-overview.jpg), [06-swagger-ui-endpoints.jpg](docs/screenshots/06-swagger-ui-endpoints.jpg) |
+| Swagger: RBAC and error responses | [07-swagger-rbac-delete-vehicle.png](docs/screenshots/07-swagger-rbac-delete-vehicle.png) |
+| Swagger: nearby search endpoint | [08-swagger-nearby-search.png](docs/screenshots/08-swagger-nearby-search.png) |
