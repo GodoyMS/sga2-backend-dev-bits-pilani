@@ -1,8 +1,19 @@
 {
-  "require": ["test/setup-env.js", "ts-node/register/transpile-only"],
-  "spec": ["test/**/*.test.ts"],
-  "extension": ["ts"],
+  "require": [
+    "test/setup-env.js",
+    "ts-node/register/transpile-only"
+  ],
+  "spec": [
+    "test/**/*.test.ts"
+  ],
+  "extension": [
+    "ts"
+  ],
   "timeout": 20000,
   "exit": true,
-  "reporter": "spec"
+  "reporter": "spec",
+  "node-option": [
+    "disable-warning=MODULE_TYPELESS_PACKAGE_JSON",
+    "disable-warning=DEP0060"
+  ]
 }
