@@ -4,6 +4,8 @@ import { config } from '../../config';
 export interface SmsResult {
   providerMessageId: string;
   providerStatus: string;
+  /** Set when the provider delivered a substitute body (e.g. a Twilio trial template). */
+  note?: string;
 }
 
 export interface SmsProvider {
@@ -13,20 +15,44 @@ export interface SmsProvider {
 
 const E164 = /^\+[1-9]\d{7,14}$/;
 
-/** Real SMS through Twilio (works with trial accounts for verified numbers). */
+/** Twilio error returned when a trial account sends a custom body instead of a predefined template. */
+const TWILIO_TRIAL_TEMPLATE_ERROR = 572006;
+
+/**
+ * Real SMS through Twilio.
+ * Trial accounts may only send to verified numbers and only Twilio's predefined templates; when Twilio
+ * rejects the custom alert text for that reason, the alert is re-sent with TWILIO_TRIAL_TEMPLATE
+ * (default `sms_delivery_updates`). The full alert text is still stored in the notification log.
+ * Upgraded accounts send the custom text as-is.
+ */
 export class TwilioSmsProvider implements SmsProvider {
   readonly name = 'twilio';
   private client = twilio(config.sms.twilioAccountSid, config.sms.twilioAuthToken);
 
-  async send(to: string, body: string): Promise<SmsResult> {
-    const msg = await this.client.messages.create({
+  private create(to: string, body: string) {
+    return this.client.messages.create({
       to,
       body,
       ...(config.sms.twilioMessagingServiceSid
         ? { messagingServiceSid: config.sms.twilioMessagingServiceSid }
         : { from: config.sms.twilioFromNumber }),
     });
-    return { providerMessageId: msg.sid, providerStatus: msg.status };
+  }
+
+  async send(to: string, body: string): Promise<SmsResult> {
+    try {
+      const msg = await this.create(to, body);
+      return { providerMessageId: msg.sid, providerStatus: msg.status };
+    } catch (err) {
+      if ((err as { code?: number }).code !== TWILIO_TRIAL_TEMPLATE_ERROR) throw err;
+      const template = config.sms.twilioTrialTemplate;
+      const msg = await this.create(to, template);
+      return {
+        providerMessageId: msg.sid,
+        providerStatus: msg.status,
+        note: `Twilio trial account: delivered with predefined template "${template}"`,
+      };
+    }
   }
 }
 

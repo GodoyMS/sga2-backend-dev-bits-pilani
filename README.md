@@ -178,6 +178,7 @@ See [`.env.example`](.env.example). The most important variables:
 | `GOOGLE_MAPS_API_KEY` | Enables the Google Maps Geocoding API (otherwise OpenStreetMap Nominatim) |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` | Enables real SMS via Twilio (otherwise the stub provider) |
 | `SEED_ADMIN_PHONE`, `ALERT_PHONE_NUMBERS` | Who receives alerts (Twilio trial: verified numbers only) |
+| `TWILIO_TRIAL_TEMPLATE` | Twilio trial accounts only accept predefined templates (error 572006). When Twilio rejects the custom alert text, it is re-sent with this template (default `sms_delivery_updates`); the full alert text is still stored in the log with provider `twilio (trial template)` |
 
 ---
 

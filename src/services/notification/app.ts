@@ -85,10 +85,12 @@ async function sendAndRecord(input: {
   const provider = getSmsProvider();
   let status: 'sent' | 'failed' = 'sent';
   let providerMessageId: string | null = null;
+  let providerLabel = provider.name;
   let error: string | null = null;
   try {
     const result = await provider.send(input.recipient, input.message);
     providerMessageId = result.providerMessageId;
+    if (result.note) providerLabel = `${provider.name} (trial template)`;
   } catch (err) {
     status = 'failed';
     error = (err as Error).message.slice(0, 500);
@@ -104,7 +106,7 @@ async function sendAndRecord(input: {
       input.recipient,
       input.recipientUserId ?? null,
       input.message,
-      provider.name,
+      providerLabel,
       status,
       providerMessageId,
       error,

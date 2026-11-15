@@ -67,6 +67,8 @@ export const config = {
     twilioAuthToken: process.env.TWILIO_AUTH_TOKEN ?? '',
     twilioFromNumber: process.env.TWILIO_FROM_NUMBER ?? '',
     twilioMessagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID ?? '',
+    /** Predefined template used when a Twilio trial account rejects custom message bodies. */
+    twilioTrialTemplate: process.env.TWILIO_TRIAL_TEMPLATE ?? 'sms_delivery_updates',
     /** Extra on-call numbers (E.164) that receive every critical alert. */
     alertPhoneNumbers: list(process.env.ALERT_PHONE_NUMBERS),
     /** The stub provider fails for this number so the "failed" path can be demonstrated. */
