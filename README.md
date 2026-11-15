@@ -224,7 +224,7 @@ All in [`docs/screenshots`](docs/screenshots).
 |---|---|
 | Fleet console: map, nearby results, SMS log, gateway checks | [00-fleet-console-overview.jpg](docs/screenshots/00-fleet-console-overview.jpg) |
 | Vehicle geolocation and nearby vehicles within 6 km | [01-nearby-vehicles-map.jpg](docs/screenshots/01-nearby-vehicles-map.jpg) |
-| SMS notifications for a vehicle event and a status change | [02-sms-notifications.jpg](docs/screenshots/02-sms-notifications.jpg) |
+| SMS notifications for a vehicle event and a status change (Twilio, `sent`/`failed` log) | [02-sms-notifications.jpg](docs/screenshots/02-sms-notifications.jpg), [02b-sms-log-detail.png](docs/screenshots/02b-sms-log-detail.png) |
 | API Gateway: API key verification and routing to each service | [03-gateway-api-key-and-routing.png](docs/screenshots/03-gateway-api-key-and-routing.png) |
 | API Gateway: forwarded request headers (`x-served-by`, `x-request-id`, rate limit) | [04-gateway-inspector.png](docs/screenshots/04-gateway-inspector.png) |
 | Swagger UI | [05-swagger-ui-overview.jpg](docs/screenshots/05-swagger-ui-overview.jpg), [06-swagger-ui-endpoints.jpg](docs/screenshots/06-swagger-ui-endpoints.jpg) |
