@@ -146,6 +146,10 @@
       <div id="notifs" class="muted">Sign in as admin or operator to see the log.</div>
     </section>
     <section>
+      <h2>Gateway checks <button class="ghost" id="runChecks" style="padding:2px 8px;font-size:12px">Run</button></h2>
+      <div id="checks" class="muted">Runs API key verification, routing and error checks against this gateway.</div>
+    </section>
+    <section>
       <h2>Gateway inspector</h2>
       <div id="inspector" class="inspector">No requests yet.</div>
     </section>
@@ -326,6 +330,36 @@
     } catch (e) { $('notifs').textContent = e.message; }
   }
 
+  async function runChecks() {
+    const key = $('apiKey').value.trim();
+    const auth = state.token ? { authorization: 'Bearer ' + state.token } : {};
+    const cases = [
+      { name: 'No API key', path: '/api/vehicles', headers: {}, expect: 401 },
+      { name: 'Invalid API key', path: '/api/vehicles', headers: { 'x-api-key': 'not-a-real-key' }, expect: 403 },
+      { name: 'Users route', path: '/api/users/me', headers: { 'x-api-key': key, ...auth }, expect: 200 },
+      { name: 'Vehicles route', path: '/api/vehicles?limit=1', headers: { 'x-api-key': key, ...auth }, expect: 200 },
+      { name: 'Telemetry route', path: '/api/telemetry/vehicle/' + (state.vehicles[0]?.id || '00000000-0000-4000-8000-000000000000') + '?limit=1', headers: { 'x-api-key': key, ...auth }, expect: 200 },
+      { name: 'Maps route', path: '/api/maps/nearby?lat=12.9716&lng=77.5946&radiusKm=3', headers: { 'x-api-key': key, ...auth }, expect: 200 },
+      { name: 'Notifications route', path: '/api/notifications?limit=1', headers: { 'x-api-key': key, ...auth }, expect: 200 },
+      { name: 'Unknown route', path: '/api/spaceships', headers: { 'x-api-key': key }, expect: 404 },
+      { name: 'Malformed JSON', path: '/api/users/login', method: 'POST', body: '{"email":', headers: { 'x-api-key': key, 'content-type': 'application/json' }, expect: 400 },
+    ];
+    const rows = [];
+    for (const c of cases) {
+      const r = await fetch(c.path, { method: c.method || 'GET', headers: c.headers, body: c.body });
+      const data = await r.json().catch(() => ({}));
+      rows.push({ ...c, status: r.status, servedBy: r.headers.get('x-served-by') || 'gateway', code: data?.error?.code || '', remaining: r.headers.get('ratelimit') });
+    }
+    const last = rows.filter((r) => r.remaining).pop();
+    $('checks').innerHTML =
+      `<table style="width:100%;border-collapse:collapse;font-size:12px">` +
+      `<tr class="k" style="text-align:left"><th>check</th><th>status</th><th>handled by</th></tr>` +
+      rows.map((r) => `<tr style="border-top:1px solid var(--line)"><td style="padding:4px 0">${r.status === r.expect ? '✅' : '❌'} ${esc(r.name)}</td>` +
+        `<td class="code${String(r.status)[0]}">${r.status}${r.code ? ' <span class="k">' + esc(r.code) + '</span>' : ''}</td><td>${esc(r.servedBy)}</td></tr>`).join('') +
+      `</table><div class="muted" style="margin-top:6px">Rate limit (per API key): ${esc(last?.remaining || '-')}</div>`;
+  }
+
+  $('runChecks').onclick = runChecks;
   map.on('click', (e) => { $('address').value = ''; $('lat').value = e.latlng.lat.toFixed(5); $('lng').value = e.latlng.lng.toFixed(5); search(); });
   $('loginBtn').onclick = login;
   $('searchBtn').onclick = search;
