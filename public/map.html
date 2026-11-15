@@ -180,6 +180,7 @@
     const t = $('toast'); t.textContent = msg; t.style.display = 'block';
     clearTimeout(toast.h); toast.h = setTimeout(() => (t.style.display = 'none'), ms);
   }
+  const maskPhone = (p) => (/^\+\d{8,}$/.test(p || '') ? p.slice(0, 4) + '•••••' + p.slice(-3) : p);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   async function call(method, path, body) {
@@ -325,7 +326,7 @@
       $('notifs').innerHTML = data.notifications.length ? data.notifications.map((n) =>
         `<div class="notif"><div class="top"><b style="font-size:12.5px">${esc(n.eventType)} ${plate(n.vehicleId) ? '· ' + esc(plate(n.vehicleId)) : ''}</b>${statusBadge(n.status)}</div>` +
         `<div class="msg">${esc(n.message)}</div>` +
-        `<div class="meta">to ${esc(n.recipient)} · ${esc(n.provider)} · ${new Date(n.createdAt).toLocaleTimeString()}${n.providerMessageId ? ' · ' + esc(n.providerMessageId) : ''}${n.error ? '<br><span style="color:var(--bad)">' + esc(n.error) + '</span>' : ''}</div></div>`).join('')
+        `<div class="meta">to ${esc(maskPhone(n.recipient))} · ${esc(n.provider)} · ${new Date(n.createdAt).toLocaleTimeString()}${n.providerMessageId ? ' · ' + esc(n.providerMessageId) : ''}${n.error ? '<br><span style="color:var(--bad)">' + esc(n.error) + '</span>' : ''}</div></div>`).join('')
         : '<div class="muted">No notifications yet. Send a vehicle event to trigger one.</div>';
     } catch (e) { $('notifs').textContent = e.message; }
   }
